@@ -51,14 +51,28 @@ MQTT 凭据没有写进工程文件。需要订阅时可从 Pro 的 `/userdata/q
 
 对应接口声明放在同名头文件中。
 
-目标必须是 RV1126B 的 aarch64。使用现有匹配设备的 SDK/sysroot：
+目标必须是 RV1126B 的 aarch64。在 Linux 或 WSL 中安装 Seeed 的[交叉编译 SDK](https://github.com/Seeed-Projects/recamera_pro_toolchain)，需要联网下载 SDK 工具链和目标 sysroot：
 
 ```bash
-cmake -S cpp -B cpp/build \
-  -DCMAKE_TOOLCHAIN_FILE=/home/yylin/recamera_pro/recamera-pro-sdk/cmake/recamera-pro-toolchain.cmake \
+sudo apt update
+sudo apt install -y git cmake ninja-build pkg-config
+PROJECT_ROOT="$PWD"
+git clone https://github.com/Seeed-Projects/recamera_pro_toolchain.git "$PROJECT_ROOT/../recamera_pro_toolchain"
+cd "$PROJECT_ROOT/../recamera_pro_toolchain"
+./scripts/setup.sh
+source scripts/env.sh
+bash scripts/check-sdk.sh
+cd "$PROJECT_ROOT"
+export RECAMERA_SDK_ROOT="$(cd ../recamera_pro_toolchain && pwd)"
+source "$RECAMERA_SDK_ROOT/scripts/env.sh"
+cmake -S cpp -B cpp/build -G Ninja \
+  -DCMAKE_TOOLCHAIN_FILE="$RECAMERA_SDK_ROOT/cmake/recamera-pro-toolchain.cmake" \
   -DCMAKE_BUILD_TYPE=Release
 cmake --build cpp/build -j4
+file cpp/build/qr_pro
 ```
+
+`file` 应显示 `ARM aarch64`。该程序链接 GStreamer、OpenCV、ZBar 和 Mosquitto 目标库；如果交叉编译时报缺失，请确认这些库存在于 SDK sysroot 中，不能改用主机上的 x86 库。
 
 首次安装/升级时，将二进制、网页和设备端 go2rtc 配置一起复制，并注册两个 init 脚本：
 
