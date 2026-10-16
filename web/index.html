@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>reCamera Pro · 二维码与条形码识别</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui,-apple-system,"Segoe UI",sans-serif; background:#0b1117; color:#edf3f7; }
+    * { box-sizing:border-box; } body { margin:0; padding:24px; }
+    main { max-width:1400px; margin:auto; } header { display:flex; justify-content:space-between; align-items:center; gap:20px; margin-bottom:22px; }
+    h1 { font-size:24px; margin:0 0 5px; } header p { margin:0; color:#91a2b0; }
+    .status { border:1px solid #354350; border-radius:30px; padding:7px 14px; color:#ffcc81; white-space:nowrap; }
+    .status.on { color:#67e5aa; border-color:#33785b; }
+    .layout { display:grid; grid-template-columns:minmax(0,2fr) minmax(290px,1fr); gap:20px; }
+    section { background:#151f29; border:1px solid #263543; border-radius:14px; overflow:hidden; }
+    .section-head { padding:16px 18px; border-bottom:1px solid #263543; display:flex; justify-content:space-between; align-items:center; }
+    h2 { font-size:16px; margin:0; } small { color:#91a2b0; }
+    iframe { display:block; width:100%; aspect-ratio:16/9; border:0; background:#05080b; }
+    .results { padding:12px; max-height:70vh; overflow:auto; min-height:250px; }
+    .empty { color:#91a2b0; padding:16px 8px; }
+    article { border:1px solid #344554; background:#1b2935; border-radius:9px; padding:12px; margin-bottom:10px; overflow-wrap:anywhere; }
+    article time { display:block; font-size:12px; color:#91a2b0; margin-bottom:6px; }
+    article strong { font-size:15px; font-weight:600; }
+    footer { color:#91a2b0; font-size:13px; margin-top:16px; }
+    @media(max-width:850px) { body { padding:12px; } .layout { grid-template-columns:1fr; } h1 { font-size:20px; } }
+  </style>
+</head>
+<body>
+<main>
+  <header><div><h1>reCamera Pro · 码识别</h1><p>硬件 H.264 实时画面与扫码结果</p></div><span id="status" class="status">结果连接中</span></header>
+  <div class="layout">
+    <section><div class="section-head"><h2>WebRTC 实时画面</h2><small>设备硬件 H.264 编码</small></div><iframe id="video" title="实时识别画面" allow="autoplay; fullscreen"></iframe></section>
+    <section><div class="section-head"><h2>识别结果</h2><small>WebSocket 实时消息</small></div><div id="results" class="results"><div class="empty">等待识别结果…</div></div></section>
+  </div>
+  <footer>画面来自 rkipc 的硬件 H.264 主码流；扫码结果在右侧实时显示。同一内容持续出现只发送一次，离开超过 60 秒后再次出现才重新发送。MQTT 主题：recamera/qr/result</footer>
+</main>
+<script>
+  // Direct mode connects to the device's go2rtc. Proxy mode uses go2rtc on
+  // the machine serving this page through Nginx (Windows or Linux).
+  const stream = new URLSearchParams(location.search).get('stream') || 'qr';
+  const videoMode = new URLSearchParams(location.search).get('video') || 'direct';
+  const videoUrl = videoMode === 'proxy'
+    ? `${location.protocol}//${location.host}/stream.html?src=${encodeURIComponent(stream)}&mode=webrtc`
+    : `${location.protocol}//${location.hostname}:1986/stream.html?src=${encodeURIComponent(stream)}&mode=webrtc`;
+  document.getElementById('video').src =
+    videoUrl;
+  const status = document.getElementById('status');
+  const results = document.getElementById('results');
+  let attempts = 0;
+  function connect() {
+    const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
+    ws.onopen = () => { attempts = 0; status.textContent = '结果已连接'; status.classList.add('on'); };
+    ws.onmessage = event => {
+      results.querySelector('.empty')?.remove();
+      const item = document.createElement('article');
+      const time = document.createElement('time');
+      time.textContent = new Date().toLocaleString();
+      const value = document.createElement('strong');
+      value.textContent = event.data;
+      item.append(time, value);
+      results.prepend(item);
+      while (results.children.length > 100) results.lastElementChild.remove();
+    };
+    ws.onclose = () => { status.textContent = '结果重连中'; status.classList.remove('on'); setTimeout(connect, Math.min(10000, 1000 * 2 ** Math.min(attempts++, 4))); };
+    ws.onerror = () => ws.close();
+  }
+  connect();
+</script>
+</body>
+</html>

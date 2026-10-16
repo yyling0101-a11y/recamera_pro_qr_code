@@ -1,0 +1,24 @@
+#!/bin/sh
+APP=/userdata/qr_rec/qr_pro
+PID=/var/run/qr_pro.pid
+LOG=/userdata/qr_rec/qr_pro.log
+
+start() {
+    [ -x "$APP" ] || exit 1
+    [ -r /userdata/qr_mqtt.env ] && . /userdata/qr_mqtt.env
+    export QR_MQTT_USER QR_MQTT_PASSWORD
+    start-stop-daemon -S -o -b -m -p "$PID" -x "$APP" -- \
+        127.0.0.1 1883 recamera/qr/result 8766 >>"$LOG" 2>&1
+}
+
+stop() {
+    start-stop-daemon -K -o -p "$PID" -x "$APP"
+    rm -f "$PID"
+}
+
+case "$1" in
+    start) start ;;
+    stop) stop ;;
+    restart) stop; sleep 1; start ;;
+    *) echo "Usage: $0 {start|stop|restart}"; exit 1 ;;
+esac

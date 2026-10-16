@@ -1,0 +1,9 @@
+# Local usage guide is intentionally kept out of the GitHub repository.
+/wiki/
+
+# Local IDE and build output
+/.vscode/
+/cpp/build/
+
+# Device inspection dump contains machine-specific details.
+/device-inspection.txt

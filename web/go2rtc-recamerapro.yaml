@@ -1,0 +1,13 @@
+# Dedicated browser-facing go2rtc instance for reCamera Pro.
+#
+# rkipc owns the camera and produces this H.264 stream with the RV1126B
+# hardware encoder.  This process only remuxes it for WebRTC; it never reads a
+# V4L2 node and never invokes ffmpeg or a software encoder.
+api:
+  listen: ":1986"
+rtsp:
+  listen: ""
+webrtc:
+  listen: ":8557"
+streams:
+  qr: "rtsp://127.0.0.1:5554/live/0"
