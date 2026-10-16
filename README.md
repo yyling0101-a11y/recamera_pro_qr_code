@@ -1,6 +1,6 @@
 # reCamera Pro 二维码与条形码识别
 
-部署完成后，在同一局域网任意浏览器打开 **http://192.168.3.207:8766/** 查看 WebRTC 画面和 WebSocket 识别结果。浏览器直接与 reCamera Pro 建立 WebRTC 连接，不需要 Windows、WSL nginx 或 Windows go2rtc。
+部署完成后，在同一网络的浏览器打开 **http://192.168.42.1:8766/** 查看 WebRTC 画面和 WebSocket 识别结果。浏览器直接与 reCamera Pro 建立 WebRTC 连接，不需要 Windows、WSL nginx 或 Windows go2rtc。
 
 也可以选择 Windows 或 Linux 电脑作为视频代理。两种配置使用电脑上的 FFmpeg 将设备 MJPEG 转为 H.264，再由 go2rtc 提供 WebRTC；先部署对应的 Nginx 配置和 go2rtc 配置，然后访问 `http://代理电脑IP:18888/?video=proxy`。Linux 示例配置在 `web/nginx-site.conf` 和 `web/go2rtc-linux.yaml`；Windows 配置在 `web/nginx.conf` 和 `web/go2rtc-windows.yaml`。本地完整操作 Wiki 保存在 `wiki/`，按要求不会提交到 Git。
 
@@ -8,7 +8,7 @@
 
 ## 工作方式
 
-- Pro 上由 `cpp/main.cpp` 构建的程序通过 GStreamer 从 `/dev/video13` 采集 1920×1080 NV12 画面。识别线程以最新帧为准，不积压旧帧；视频预览仍输出 960×540 MJPEG，地址是 `http://192.168.3.207:8766/video.mjpg`。
+- Pro 上由 `cpp/main.cpp` 构建的程序通过 GStreamer 从 `/dev/video13` 采集 1920×1080 NV12 画面。识别线程以最新帧为准，不积压旧帧；视频预览仍输出 960×540 MJPEG，地址是 `http://192.168.42.1:8766/video.mjpg`。
 - ZBar 同时启用 QR 和常见一维码。video13 的有限范围亮度会先扩展、轻度去噪并二值化；若该路径未解码，再使用原始灰度图回退扫描。DataBar 已关闭，避免在当前纸质场景中产生数值误报。日志会记录识别类型，例如 `CODE-128`。
 - 每个不同的数据内容独立维护最近出现时间。首次检出发送一次；持续在画面中或离开不到 60 秒再出现均不重复发送；离开超过 60 秒后再次检出才重新发送。MQTT 和 WebSocket 的消息内容只有码内原始数据。浏览器重新连接时，WebSocket 会回放当前冷却窗口内的结果。
 - Pro 在 `ws://设备IP:8766/ws` 提供识别结果；设备首页直接连接该 WebSocket，不经过 nginx。
@@ -32,7 +32,7 @@ MQTT 的 SSH 反向隧道仍仅用于把扫码事件发到本机 Mosquitto；它
 
 ```bash
 ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 \
-  -R 127.0.0.1:1883:127.0.0.1:1883 root@192.168.3.207
+  -R 127.0.0.1:1883:127.0.0.1:1883 root@192.168.42.1
 ```
 
 MQTT 凭据没有写进工程文件。需要订阅时可从 Pro 的 `/userdata/qr_mqtt.env` 读取用户名和密码。隧道不在时，视频和 WebSocket 仍可使用，MQTT 事件只在程序内存中排队；重启程序会清空队列。
@@ -63,9 +63,10 @@ cmake --build cpp/build -j4
 首次安装/升级时，将二进制、网页和设备端 go2rtc 配置一起复制，并注册两个 init 脚本：
 
 ```bash
+ssh root@192.168.42.1 'mkdir -p /userdata/qr_rec'
 scp cpp/build/qr_pro web/index.html web/go2rtc-recamerapro.yaml \
-  scripts/S97qr_go2rtc scripts/S98qr_pro root@192.168.3.207:/userdata/qr_rec/
-ssh root@192.168.3.207 '
+  scripts/S97qr_go2rtc scripts/S98qr_pro root@192.168.42.1:/userdata/qr_rec/
+ssh root@192.168.42.1 '
   set -e
   cd /userdata/qr_rec
   mv go2rtc-recamerapro.yaml go2rtc.yaml

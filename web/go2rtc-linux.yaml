@@ -9,4 +9,4 @@ webrtc:
   candidates:
     - 192.168.3.151:8557
 streams:
-  qr: "exec:ffmpeg -hide_banner -loglevel error -i http://192.168.3.207:8766/video.mjpg -an -c:v libx264 -preset ultrafast -tune zerolatency -g 20 -pix_fmt yuv420p -b:v 1200k -f h264 -"
+  qr: "exec:ffmpeg -hide_banner -loglevel error -i http://192.168.42.1:8766/video.mjpg -an -c:v libx264 -preset ultrafast -tune zerolatency -g 20 -pix_fmt yuv420p -b:v 1200k -f h264 -"
